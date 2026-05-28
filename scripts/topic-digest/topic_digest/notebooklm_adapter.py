@@ -1,5 +1,20 @@
+import re
 from contextlib import asynccontextmanager
 from typing import Protocol, runtime_checkable
+
+
+_SECRET_PATTERNS = (
+    re.compile(r"cookies?\s*[:=]\s*\S+", re.IGNORECASE),
+    re.compile(r"session_state\s*[:=]\s*\S+", re.IGNORECASE),
+    re.compile(r"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)?"),
+)
+
+
+def sanitize_log(text: str) -> str:
+    """Redact cookie/JWT patterns before writing to log."""
+    for pat in _SECRET_PATTERNS:
+        text = pat.sub("[redacted]", text)
+    return text
 
 
 class AuthExpiredError(Exception):

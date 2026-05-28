@@ -1,7 +1,8 @@
-from dataclasses import dataclass, field, asdict
+import json
+import os
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-import json
 
 
 @dataclass
@@ -27,8 +28,10 @@ def load_state(path: Path) -> AppState:
 
 def save_state(state: AppState, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
+    tmp = path.with_suffix(".json.tmp")
+    with tmp.open("w", encoding="utf-8") as f:
         json.dump(asdict(state), f, indent=2, ensure_ascii=False)
+    os.replace(tmp, path)
 
 
 def is_new(state: AppState, video_id: str) -> bool:

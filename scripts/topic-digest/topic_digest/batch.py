@@ -1,5 +1,4 @@
 import asyncio
-import re
 from contextlib import asynccontextmanager
 
 from .config import Config, load_config
@@ -9,23 +8,11 @@ from .notebooklm_adapter import (
     Adapter,
     AuthExpiredError,
     real_adapter,
+    sanitize_log,
 )
 
 
 _ARTIFACT_TYPES = ("audio", "video", "mind_map")
-
-
-_SECRET_PATTERNS = (
-    re.compile(r"cookies?\s*[:=]\s*\S+", re.IGNORECASE),
-    re.compile(r"session_state\s*[:=]\s*\S+", re.IGNORECASE),
-    re.compile(r"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)?"),
-)
-
-
-def _sanitize(text: str) -> str:
-    for pat in _SECRET_PATTERNS:
-        text = pat.sub("[redacted]", text)
-    return text
 
 
 @asynccontextmanager
@@ -58,7 +45,7 @@ async def run_batch(adapter: Adapter | None = None, config: Config | None = None
             except Exception as e:
                 log.error(
                     f"{artifact_type}: fail "
-                    f"{type(e).__name__}: {_sanitize(str(e))}"
+                    f"{type(e).__name__}: {sanitize_log(str(e))}"
                 )
                 continue
             log.info(f"{artifact_type}: ok (task_id={task_id})")

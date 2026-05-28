@@ -172,6 +172,33 @@ async def test_mind_map_failure_does_not_block_audio_and_video(tmp_path: Path):
     assert len(adapter.generate_mind_map_calls) == 0
 
 
+async def test_batch_logs_do_not_leak_storage_state_secrets(tmp_path: Path):
+    import re as _re
+
+    config = make_config(tmp_path)
+    save_state(make_state_with_new_sources(1), config.state_path)
+
+    adapter = InMemoryAdapter()
+    adapter.generate_audio_error = RuntimeError(
+        "request failed; cookies=SESSION=abc123; "
+        "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature; "
+        "session_state=opaque-value"
+    )
+
+    await run_batch(adapter=adapter, config=config)
+
+    log_text = config.log_path.read_text(encoding="utf-8")
+    assert not _re.search(r"\bcookies\b", log_text, _re.IGNORECASE), (
+        f"cookies keyword leaked into batch log:\n{log_text}"
+    )
+    assert not _re.search(r"\bsession_state\b", log_text, _re.IGNORECASE), (
+        f"session_state keyword leaked into batch log:\n{log_text}"
+    )
+    assert not _re.search(r"eyJ[A-Za-z0-9_-]+\.eyJ", log_text), (
+        f"JWT pattern leaked into batch log:\n{log_text}"
+    )
+
+
 async def test_partial_failure_logs_ok_and_fail_separately(tmp_path: Path):
     import re as _re
 

@@ -6,6 +6,7 @@ def setup_logging(log_path: Path, level: int = logging.INFO) -> logging.Logger:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     logger = logging.getLogger("topic_digest")
     logger.setLevel(level)
+    logger.propagate = False  # prevent notebooklm-py/playwright loggers leaking raw cookies to root
 
     for handler in list(logger.handlers):
         handler.close()
