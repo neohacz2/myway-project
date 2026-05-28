@@ -12,7 +12,7 @@ from .notebooklm_adapter import (
 )
 
 
-_ARTIFACT_TYPES = ("audio", "video", "mind_map")
+_ARTIFACT_TYPES = ("audio", "video", "mind_map", "infographic")
 
 
 @asynccontextmanager

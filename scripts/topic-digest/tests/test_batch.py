@@ -25,7 +25,7 @@ def make_state_with_new_sources(n: int) -> AppState:
 # ─── Scenario 3: happy path ─────────────────────────────────────────────────
 
 
-async def test_batch_triggers_all_three_artifacts(tmp_path: Path):
+async def test_batch_triggers_all_four_artifacts(tmp_path: Path):
     config = make_config(tmp_path)
     save_state(make_state_with_new_sources(2), config.state_path)
     adapter = InMemoryAdapter()
@@ -35,6 +35,7 @@ async def test_batch_triggers_all_three_artifacts(tmp_path: Path):
     assert len(adapter.generate_audio_calls) == 1
     assert len(adapter.generate_video_calls) == 1
     assert len(adapter.generate_mind_map_calls) == 1
+    assert len(adapter.generate_infographic_calls) == 1
 
 
 async def test_batch_logs_artifact_results(tmp_path: Path):
@@ -47,6 +48,7 @@ async def test_batch_logs_artifact_results(tmp_path: Path):
     assert "audio: ok" in log_text
     assert "video: ok" in log_text
     assert "mind_map: ok" in log_text
+    assert "infographic: ok" in log_text
 
 
 async def test_batch_does_not_call_wait_for_completion(tmp_path: Path):
@@ -87,6 +89,7 @@ async def test_batch_skips_when_no_new_sources(tmp_path: Path):
     assert adapter.generate_audio_calls == []
     assert adapter.generate_video_calls == []
     assert adapter.generate_mind_map_calls == []
+    assert adapter.generate_infographic_calls == []
 
 
 async def test_batch_skip_does_not_update_last_batch_at(tmp_path: Path):
@@ -125,6 +128,7 @@ async def test_batch_auth_expired_aborts_all_triggers(tmp_path: Path):
 
     assert adapter.generate_video_calls == []
     assert adapter.generate_mind_map_calls == []
+    assert adapter.generate_infographic_calls == []
 
 
 async def test_batch_auth_expired_does_not_update_state(tmp_path: Path):
@@ -158,7 +162,7 @@ async def test_batch_auth_expired_logs_exact_message(tmp_path: Path):
 # ─── Scenario 7: partial failure isolation ──────────────────────────────────
 
 
-async def test_mind_map_failure_does_not_block_audio_and_video(tmp_path: Path):
+async def test_mind_map_failure_does_not_block_audio_video_infographic(tmp_path: Path):
     config = make_config(tmp_path)
     save_state(make_state_with_new_sources(1), config.state_path)
 
@@ -170,6 +174,7 @@ async def test_mind_map_failure_does_not_block_audio_and_video(tmp_path: Path):
     assert len(adapter.generate_audio_calls) == 1
     assert len(adapter.generate_video_calls) == 1
     assert len(adapter.generate_mind_map_calls) == 0
+    assert len(adapter.generate_infographic_calls) == 1
 
 
 async def test_batch_logs_do_not_leak_storage_state_secrets(tmp_path: Path):

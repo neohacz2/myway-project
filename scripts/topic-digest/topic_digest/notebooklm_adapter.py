@@ -27,6 +27,7 @@ class Adapter(Protocol):
     async def generate_audio(self, notebook_id: str) -> str: ...
     async def generate_video(self, notebook_id: str) -> str: ...
     async def generate_mind_map(self, notebook_id: str) -> str: ...
+    async def generate_infographic(self, notebook_id: str) -> str: ...
 
 
 def _looks_like_auth_failure(e: Exception) -> bool:
@@ -64,10 +65,18 @@ class NotebookLMAdapter:
     async def generate_mind_map(self, notebook_id: str) -> str:
         return await self._gen("generate_mind_map", notebook_id)
 
-    async def _gen(self, method_name: str, notebook_id: str) -> str:
+    async def generate_infographic(self, notebook_id: str) -> str:
+        # orientation is required — Google backend immediately rejects null orientation
+        from notebooklm.rpc.types import InfographicOrientation
+        return await self._gen(
+            "generate_infographic", notebook_id,
+            orientation=InfographicOrientation.PORTRAIT,
+        )
+
+    async def _gen(self, method_name: str, notebook_id: str, **kwargs) -> str:
         try:
             method = getattr(self._client.artifacts, method_name)
-            result = await method(notebook_id)
+            result = await method(notebook_id, **kwargs)
             return _extract_task_id(result)
         except Exception as e:
             if _looks_like_auth_failure(e):
@@ -87,6 +96,8 @@ class InMemoryAdapter:
         self.generate_video_error: Exception | None = None
         self.generate_mind_map_calls: list[str] = []
         self.generate_mind_map_error: Exception | None = None
+        self.generate_infographic_calls: list[str] = []
+        self.generate_infographic_error: Exception | None = None
 
     async def add_url(self, notebook_id: str, url: str) -> None:
         if self.add_url_error is not None:
@@ -110,6 +121,12 @@ class InMemoryAdapter:
             raise self.generate_mind_map_error
         self.generate_mind_map_calls.append(notebook_id)
         return f"mind_map-task-{len(self.generate_mind_map_calls)}"
+
+    async def generate_infographic(self, notebook_id: str) -> str:
+        if self.generate_infographic_error is not None:
+            raise self.generate_infographic_error
+        self.generate_infographic_calls.append(notebook_id)
+        return f"infographic-task-{len(self.generate_infographic_calls)}"
 
 
 @asynccontextmanager
