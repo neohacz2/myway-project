@@ -67,6 +67,14 @@ describe("readDigestState", () => {
     expect(state.lastPolledAt).toBeNull();
     expect(state.lastBatchAt).toBeNull();
   });
+
+  it("returns empty state when state.json is malformed", () => {
+    const p = join(TMP, "state.json");
+    writeFileSync(p, "not valid json{{{");
+    const state = readDigestState(p);
+    expect(state.totalSources).toBe(0);
+    expect(state.recentVideos).toEqual([]);
+  });
 });
 
 describe("formatKST", () => {

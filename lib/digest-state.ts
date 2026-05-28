@@ -37,7 +37,13 @@ export function readDigestState(statePath?: string): DigestState {
     };
   }
 
-  const raw = JSON.parse(readFileSync(path, "utf-8"));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let raw: any;
+  try {
+    raw = JSON.parse(readFileSync(path, "utf-8"));
+  } catch {
+    return { totalSources: 0, sourcesAddedSinceBatch: 0, lastPolledAt: null, lastBatchAt: null, recentVideos: [] };
+  }
   const ids: string[] = raw.ingested_video_ids ?? [];
   const recent = ids
     .slice(-10)

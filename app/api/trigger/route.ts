@@ -8,7 +8,13 @@ const LABELS: Record<string, { ok: string; fail: string }> = {
 };
 
 export async function POST(req: NextRequest) {
-  const { action } = await req.json();
+  let action: string;
+  try {
+    const body = await req.json();
+    action = body?.action;
+  } catch {
+    return NextResponse.json({ ok: false, message: "잘못된 요청 형식" }, { status: 400 });
+  }
 
   if (!LABELS[action]) {
     return NextResponse.json({ ok: false, message: "알 수 없는 action" }, { status: 400 });
@@ -39,6 +45,7 @@ function runPython(
     let stderr = "";
     const child = spawn("uv", args, { cwd });
     child.stderr.on("data", (d: Buffer) => (stderr += d.toString()));
-    child.on("close", (code: number) => resolve({ code, stderr }));
+    child.on("error", (err: Error) => resolve({ code: 1, stderr: err.message }));
+    child.on("close", (code: number | null) => resolve({ code: code ?? 1, stderr }));
   });
 }
