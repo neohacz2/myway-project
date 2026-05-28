@@ -1,4 +1,5 @@
 import asyncio
+import re
 from contextlib import asynccontextmanager
 
 from .config import Config, load_config
@@ -10,6 +11,19 @@ from .notebooklm_adapter import (
     real_adapter,
 )
 from .youtube import ChannelFetchError, fetch_channel_videos
+
+
+_SECRET_PATTERNS = (
+    re.compile(r"cookies?\s*[:=]\s*\S+", re.IGNORECASE),
+    re.compile(r"session_state\s*[:=]\s*\S+", re.IGNORECASE),
+    re.compile(r"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)?"),
+)
+
+
+def _sanitize(text: str) -> str:
+    for pat in _SECRET_PATTERNS:
+        text = pat.sub("[redacted]", text)
+    return text
 
 
 @asynccontextmanager
@@ -30,7 +44,7 @@ async def run_poll(adapter: Adapter | None = None, config: Config | None = None)
     try:
         videos = fetch_channel_videos(config.youtube_channel_url)
     except ChannelFetchError as e:
-        log.error(f"channel fetch failed: {e}")
+        log.error(f"channel fetch failed: {_sanitize(str(e))}")
         return
 
     new_videos = [v for v in videos if is_new(state, v.id)]
@@ -50,7 +64,10 @@ async def run_poll(adapter: Adapter | None = None, config: Config | None = None)
                 save_state(state, config.state_path)
                 return
             except Exception as e:
-                log.error(f"add_url failed for {video.id}: {type(e).__name__}")
+                log.error(
+                    f"add_url failed for {video.id}: "
+                    f"{type(e).__name__}: {_sanitize(str(e))}"
+                )
                 failed += 1
                 continue
             state.ingested_video_ids.append(video.id)

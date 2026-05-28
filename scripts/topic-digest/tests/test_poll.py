@@ -4,8 +4,8 @@ from pathlib import Path
 from pytest_httpx import HTTPXMock
 
 from topic_digest.config import Config
-from topic_digest.freshness import load_state
-from topic_digest.notebooklm_adapter import InMemoryAdapter
+from topic_digest.freshness import AppState, load_state, save_state
+from topic_digest.notebooklm_adapter import AuthExpiredError, InMemoryAdapter
 from topic_digest.poll import run_poll
 from tests.test_youtube import CHANNEL_URL, RSS_URL_EXPECTED, rss_xml
 
@@ -93,3 +93,86 @@ async def test_dedupe_logs_skip_message(tmp_path: Path, httpx_mock: HTTPXMock):
 
     log_text = config.log_path.read_text(encoding="utf-8")
     assert "skipped: already ingested" in log_text
+
+
+# ─── Task 2: error paths ───────────────────────────────────────────
+
+
+async def test_channel_fetch_500_preserves_last_polled_at(tmp_path: Path, httpx_mock: HTTPXMock):
+    config = make_config(tmp_path)
+    pre = AppState(last_polled_at="2026-05-27T00:00:00+00:00")
+    save_state(pre, config.state_path)
+
+    httpx_mock.add_response(url=RSS_URL_EXPECTED, status_code=500)
+    adapter = InMemoryAdapter()
+
+    await run_poll(adapter=adapter, config=config)
+
+    state = load_state(config.state_path)
+    assert state.last_polled_at == "2026-05-27T00:00:00+00:00"
+    assert adapter.add_url_calls == []
+
+
+async def test_channel_fetch_failure_logs_message(tmp_path: Path, httpx_mock: HTTPXMock):
+    httpx_mock.add_response(url=RSS_URL_EXPECTED, status_code=500)
+    config = make_config(tmp_path)
+
+    await run_poll(adapter=InMemoryAdapter(), config=config)
+
+    log_text = config.log_path.read_text(encoding="utf-8")
+    assert "channel fetch failed:" in log_text
+
+
+async def test_auth_expired_does_not_modify_state(tmp_path: Path, httpx_mock: HTTPXMock):
+    entries = [{"id": "vid1", "title": "V", "published": "2026-05-28T00:00:00+00:00"}]
+    httpx_mock.add_response(url=RSS_URL_EXPECTED, text=rss_xml(entries))
+    config = make_config(tmp_path)
+
+    adapter = InMemoryAdapter()
+    adapter.add_url_error = AuthExpiredError("session expired")
+
+    await run_poll(adapter=adapter, config=config)
+
+    state = load_state(config.state_path)
+    assert state.ingested_video_ids == []
+    assert state.sources_added_since_last_batch == 0
+
+
+async def test_auth_expired_logs_exact_message(tmp_path: Path, httpx_mock: HTTPXMock):
+    entries = [{"id": "vid1", "title": "V", "published": "2026-05-28T00:00:00+00:00"}]
+    httpx_mock.add_response(url=RSS_URL_EXPECTED, text=rss_xml(entries))
+    config = make_config(tmp_path)
+
+    adapter = InMemoryAdapter()
+    adapter.add_url_error = AuthExpiredError("session expired")
+
+    await run_poll(adapter=adapter, config=config)
+
+    log_text = config.log_path.read_text(encoding="utf-8")
+    assert "auth expired — run `notebooklm login` to re-authenticate" in log_text
+
+
+async def test_logs_do_not_leak_storage_state_secrets(tmp_path: Path, httpx_mock: HTTPXMock):
+    entries = [{"id": "vid1", "title": "V", "published": "2026-05-28T00:00:00+00:00"}]
+    httpx_mock.add_response(url=RSS_URL_EXPECTED, text=rss_xml(entries))
+    config = make_config(tmp_path)
+
+    adapter = InMemoryAdapter()
+    adapter.add_url_error = RuntimeError(
+        "request failed; cookies=SESSION=abc123; "
+        "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature; "
+        "session_state=opaque-value"
+    )
+
+    await run_poll(adapter=adapter, config=config)
+
+    log_text = config.log_path.read_text(encoding="utf-8")
+    assert not re.search(r"\bcookies\b", log_text, re.IGNORECASE), (
+        f"cookies keyword leaked into log:\n{log_text}"
+    )
+    assert not re.search(r"\bsession_state\b", log_text, re.IGNORECASE), (
+        f"session_state keyword leaked into log:\n{log_text}"
+    )
+    assert not re.search(r"eyJ[A-Za-z0-9_-]+\.eyJ", log_text), (
+        f"JWT pattern leaked into log:\n{log_text}"
+    )
