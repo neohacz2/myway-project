@@ -153,3 +153,39 @@ async def test_batch_auth_expired_logs_exact_message(tmp_path: Path):
 
     log_text = config.log_path.read_text(encoding="utf-8")
     assert "auth expired — run `notebooklm login` to re-authenticate" in log_text
+
+
+# ─── Scenario 7: partial failure isolation ──────────────────────────────────
+
+
+async def test_mind_map_failure_does_not_block_audio_and_video(tmp_path: Path):
+    config = make_config(tmp_path)
+    save_state(make_state_with_new_sources(1), config.state_path)
+
+    adapter = InMemoryAdapter()
+    adapter.generate_mind_map_error = RuntimeError("safe_index drift at path ()[0]")
+
+    await run_batch(adapter=adapter, config=config)
+
+    assert len(adapter.generate_audio_calls) == 1
+    assert len(adapter.generate_video_calls) == 1
+    assert len(adapter.generate_mind_map_calls) == 0
+
+
+async def test_partial_failure_logs_ok_and_fail_separately(tmp_path: Path):
+    import re as _re
+
+    config = make_config(tmp_path)
+    save_state(make_state_with_new_sources(1), config.state_path)
+
+    adapter = InMemoryAdapter()
+    adapter.generate_mind_map_error = RuntimeError("safe_index drift")
+
+    await run_batch(adapter=adapter, config=config)
+
+    log_text = config.log_path.read_text(encoding="utf-8")
+    assert "audio: ok" in log_text
+    assert "video: ok" in log_text
+    assert _re.search(r"mind_map: fail .*(Error|Exception)", log_text), (
+        f"expected 'mind_map: fail <ExcType>' in:\n{log_text}"
+    )
