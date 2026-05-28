@@ -1,0 +1,22 @@
+# topic-digest cron schedule
+# ─────────────────────────────────────────────────────────────────────
+# Prerequisites:
+#   1. cd ~/edu/myway-project/scripts/topic-digest && uv sync
+#   2. cp .env.example .env  →  fill in YOUTUBE_CHANNEL_URL, NOTEBOOK_ID
+#   3. notebooklm login      →  stores storage_state.json
+#   4. Add lines below via: crontab -e
+# ─────────────────────────────────────────────────────────────────────
+
+# Env (adjust HOME if needed)
+SHELL=/bin/bash
+HOME=/home/user
+
+# Daily poll — 09:00 KST (= 00:00 UTC). Adjust as desired.
+0 0 * * * cd /home/user/edu/myway-project/scripts/topic-digest && \
+  /home/user/edu/myway-project/scripts/topic-digest/.venv/bin/python \
+  -m topic_digest.poll >> /home/user/edu/myway-project/scripts/topic-digest/logs/cron.log 2>&1
+
+# Weekly artifact batch — 09:00 KST every Friday (= 00:00 UTC Fri).
+0 0 * * 5 cd /home/user/edu/myway-project/scripts/topic-digest && \
+  /home/user/edu/myway-project/scripts/topic-digest/.venv/bin/python \
+  -m topic_digest.batch >> /home/user/edu/myway-project/scripts/topic-digest/logs/cron.log 2>&1
