@@ -11,8 +11,8 @@ NotebookLM은 2026.04 기준 인포그래픽 10종·시네마틱 비디오·마�
 잡식·발행 자동화·횡단 검색은 이번 라운드에서 전부 제외하고, **"한 주제의 YouTube 채널/RSS → 노트북 자동 갱신 → 인포그래픽/비디오 산출"** 만 종단 동작시킨다. 학습 목적을 만족시키면서, 가장 위험한 가정(unofficial NotebookLM API의 안정성)을 가장 빠르게 깬다.
 
 ## Key Assumptions to Validate
-- [ ] **Must Be True**: `notebooklm-py` 류 unofficial 클라이언트로 노트북에 source 자동 추가가 안정적으로 동작한다 — 30분 스파이크: 노트북 생성 + YouTube URL 1개 추가 + Audio/Video Overview 생성까지 종단 호출
-- [ ] **Should Be True**: 자동 생성된 인포그래픽/비디오 품질이 *내가 보기에 만족스럽다* — 동일 주제로 수동 5개 vs 자동 5개를 비교
+- [x] **Must Be True**: `notebooklm-py` 류 unofficial 클라이언트로 노트북에 source 자동 추가가 안정적으로 동작한다 — **PASS (조건부, 2026-05-28 스파이크)**. 노트북·source·Audio/Video/Mind Map trigger 동작. **Infographic은 method_id 변경으로 깨짐** → fallback 설계 필요. 자세한 내용 `spike-log.md`.
+- [ ] **Should Be True**: 자동 생성된 인포그래픽/비디오 품질이 *내가 보기에 만족스럽다* — 동일 주제로 수동 5개 vs 자동 5개를 비교 (스파이크 노트북 `6c171f1a-…`에서 일부 확인 가능)
 - [ ] **Might Be True**: 신선한 source가 주 1회 들어와도 NotebookLM 출력이 의미 있게 갱신된다 (정체된 노트북 함정 방지) — 2주 운영 후 점검
 
 ## MVP Scope
