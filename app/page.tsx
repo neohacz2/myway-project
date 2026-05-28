@@ -1,5 +1,6 @@
 import { readDigestState } from "@/lib/digest-state";
 import { StatusCards } from "@/components/topic-digest-dashboard/status-cards";
+import { VideoList } from "@/components/topic-digest-dashboard/video-list";
 
 export default function DashboardPage() {
   const state = readDigestState();
@@ -14,7 +15,8 @@ export default function DashboardPage() {
         </div>
       </div>
       <StatusCards state={state} />
-      {/* VideoList and TriggerPanel added in Task 2 and 4 */}
+      <VideoList videos={state.recentVideos} />
+      {/* TriggerPanel added in Task 4 */}
     </main>
   );
 }
