@@ -24,10 +24,9 @@ class AuthExpiredError(Exception):
 @runtime_checkable
 class Adapter(Protocol):
     async def add_url(self, notebook_id: str, url: str) -> None: ...
-    async def generate_audio(self, notebook_id: str) -> str: ...
-    async def generate_video(self, notebook_id: str) -> str: ...
-    async def generate_mind_map(self, notebook_id: str) -> str: ...
     async def generate_infographic(self, notebook_id: str) -> str: ...
+    async def generate_slide_deck(self, notebook_id: str) -> str: ...
+    async def generate_report(self, notebook_id: str) -> str: ...
 
 
 def _looks_like_auth_failure(e: Exception) -> bool:
@@ -56,21 +55,22 @@ class NotebookLMAdapter:
                 raise AuthExpiredError("storage_state expired or rejected") from None
             raise
 
-    async def generate_audio(self, notebook_id: str) -> str:
-        return await self._gen("generate_audio", notebook_id)
-
-    async def generate_video(self, notebook_id: str) -> str:
-        return await self._gen("generate_video", notebook_id)
-
-    async def generate_mind_map(self, notebook_id: str) -> str:
-        return await self._gen("generate_mind_map", notebook_id)
-
     async def generate_infographic(self, notebook_id: str) -> str:
         # orientation is required — Google backend immediately rejects null orientation
         from notebooklm.rpc.types import InfographicOrientation
         return await self._gen(
             "generate_infographic", notebook_id,
             orientation=InfographicOrientation.PORTRAIT,
+        )
+
+    async def generate_slide_deck(self, notebook_id: str) -> str:
+        return await self._gen("generate_slide_deck", notebook_id)
+
+    async def generate_report(self, notebook_id: str) -> str:
+        from notebooklm.rpc.types import ReportFormat
+        return await self._gen(
+            "generate_report", notebook_id,
+            report_format=ReportFormat.BRIEFING_DOC,
         )
 
     async def _gen(self, method_name: str, notebook_id: str, **kwargs) -> str:
@@ -90,43 +90,35 @@ class InMemoryAdapter:
     def __init__(self) -> None:
         self.add_url_calls: list[tuple[str, str]] = []
         self.add_url_error: Exception | None = None
-        self.generate_audio_calls: list[str] = []
-        self.generate_audio_error: Exception | None = None
-        self.generate_video_calls: list[str] = []
-        self.generate_video_error: Exception | None = None
-        self.generate_mind_map_calls: list[str] = []
-        self.generate_mind_map_error: Exception | None = None
         self.generate_infographic_calls: list[str] = []
         self.generate_infographic_error: Exception | None = None
+        self.generate_slide_deck_calls: list[str] = []
+        self.generate_slide_deck_error: Exception | None = None
+        self.generate_report_calls: list[str] = []
+        self.generate_report_error: Exception | None = None
 
     async def add_url(self, notebook_id: str, url: str) -> None:
         if self.add_url_error is not None:
             raise self.add_url_error
         self.add_url_calls.append((notebook_id, url))
 
-    async def generate_audio(self, notebook_id: str) -> str:
-        if self.generate_audio_error is not None:
-            raise self.generate_audio_error
-        self.generate_audio_calls.append(notebook_id)
-        return f"audio-task-{len(self.generate_audio_calls)}"
-
-    async def generate_video(self, notebook_id: str) -> str:
-        if self.generate_video_error is not None:
-            raise self.generate_video_error
-        self.generate_video_calls.append(notebook_id)
-        return f"video-task-{len(self.generate_video_calls)}"
-
-    async def generate_mind_map(self, notebook_id: str) -> str:
-        if self.generate_mind_map_error is not None:
-            raise self.generate_mind_map_error
-        self.generate_mind_map_calls.append(notebook_id)
-        return f"mind_map-task-{len(self.generate_mind_map_calls)}"
-
     async def generate_infographic(self, notebook_id: str) -> str:
         if self.generate_infographic_error is not None:
             raise self.generate_infographic_error
         self.generate_infographic_calls.append(notebook_id)
         return f"infographic-task-{len(self.generate_infographic_calls)}"
+
+    async def generate_slide_deck(self, notebook_id: str) -> str:
+        if self.generate_slide_deck_error is not None:
+            raise self.generate_slide_deck_error
+        self.generate_slide_deck_calls.append(notebook_id)
+        return f"slide_deck-task-{len(self.generate_slide_deck_calls)}"
+
+    async def generate_report(self, notebook_id: str) -> str:
+        if self.generate_report_error is not None:
+            raise self.generate_report_error
+        self.generate_report_calls.append(notebook_id)
+        return f"report-task-{len(self.generate_report_calls)}"
 
 
 @asynccontextmanager

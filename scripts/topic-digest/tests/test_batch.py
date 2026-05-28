@@ -25,17 +25,16 @@ def make_state_with_new_sources(n: int) -> AppState:
 # ─── Scenario 3: happy path ─────────────────────────────────────────────────
 
 
-async def test_batch_triggers_all_four_artifacts(tmp_path: Path):
+async def test_batch_triggers_all_three_artifacts(tmp_path: Path):
     config = make_config(tmp_path)
     save_state(make_state_with_new_sources(2), config.state_path)
     adapter = InMemoryAdapter()
 
     await run_batch(adapter=adapter, config=config)
 
-    assert len(adapter.generate_audio_calls) == 1
-    assert len(adapter.generate_video_calls) == 1
-    assert len(adapter.generate_mind_map_calls) == 1
     assert len(adapter.generate_infographic_calls) == 1
+    assert len(adapter.generate_slide_deck_calls) == 1
+    assert len(adapter.generate_report_calls) == 1
 
 
 async def test_batch_logs_artifact_results(tmp_path: Path):
@@ -45,10 +44,9 @@ async def test_batch_logs_artifact_results(tmp_path: Path):
     await run_batch(adapter=InMemoryAdapter(), config=config)
 
     log_text = config.log_path.read_text(encoding="utf-8")
-    assert "audio: ok" in log_text
-    assert "video: ok" in log_text
-    assert "mind_map: ok" in log_text
     assert "infographic: ok" in log_text
+    assert "slide_deck: ok" in log_text
+    assert "report: ok" in log_text
 
 
 async def test_batch_does_not_call_wait_for_completion(tmp_path: Path):
@@ -86,10 +84,9 @@ async def test_batch_skips_when_no_new_sources(tmp_path: Path):
 
     await run_batch(adapter=adapter, config=config)
 
-    assert adapter.generate_audio_calls == []
-    assert adapter.generate_video_calls == []
-    assert adapter.generate_mind_map_calls == []
     assert adapter.generate_infographic_calls == []
+    assert adapter.generate_slide_deck_calls == []
+    assert adapter.generate_report_calls == []
 
 
 async def test_batch_skip_does_not_update_last_batch_at(tmp_path: Path):
@@ -122,13 +119,12 @@ async def test_batch_auth_expired_aborts_all_triggers(tmp_path: Path):
     save_state(make_state_with_new_sources(1), config.state_path)
 
     adapter = InMemoryAdapter()
-    adapter.generate_audio_error = AuthExpiredError("session expired")
+    adapter.generate_infographic_error = AuthExpiredError("session expired")
 
     await run_batch(adapter=adapter, config=config)
 
-    assert adapter.generate_video_calls == []
-    assert adapter.generate_mind_map_calls == []
-    assert adapter.generate_infographic_calls == []
+    assert adapter.generate_slide_deck_calls == []
+    assert adapter.generate_report_calls == []
 
 
 async def test_batch_auth_expired_does_not_update_state(tmp_path: Path):
@@ -137,7 +133,7 @@ async def test_batch_auth_expired_does_not_update_state(tmp_path: Path):
     save_state(original, config.state_path)
 
     adapter = InMemoryAdapter()
-    adapter.generate_audio_error = AuthExpiredError("session expired")
+    adapter.generate_infographic_error = AuthExpiredError("session expired")
 
     await run_batch(adapter=adapter, config=config)
 
@@ -151,7 +147,7 @@ async def test_batch_auth_expired_logs_exact_message(tmp_path: Path):
     save_state(make_state_with_new_sources(1), config.state_path)
 
     adapter = InMemoryAdapter()
-    adapter.generate_audio_error = AuthExpiredError("session expired")
+    adapter.generate_infographic_error = AuthExpiredError("session expired")
 
     await run_batch(adapter=adapter, config=config)
 
@@ -162,19 +158,18 @@ async def test_batch_auth_expired_logs_exact_message(tmp_path: Path):
 # ─── Scenario 7: partial failure isolation ──────────────────────────────────
 
 
-async def test_mind_map_failure_does_not_block_audio_video_infographic(tmp_path: Path):
+async def test_slide_deck_failure_does_not_block_others(tmp_path: Path):
     config = make_config(tmp_path)
     save_state(make_state_with_new_sources(1), config.state_path)
 
     adapter = InMemoryAdapter()
-    adapter.generate_mind_map_error = RuntimeError("safe_index drift at path ()[0]")
+    adapter.generate_slide_deck_error = RuntimeError("method drift")
 
     await run_batch(adapter=adapter, config=config)
 
-    assert len(adapter.generate_audio_calls) == 1
-    assert len(adapter.generate_video_calls) == 1
-    assert len(adapter.generate_mind_map_calls) == 0
     assert len(adapter.generate_infographic_calls) == 1
+    assert len(adapter.generate_slide_deck_calls) == 0
+    assert len(adapter.generate_report_calls) == 1
 
 
 async def test_batch_logs_do_not_leak_storage_state_secrets(tmp_path: Path):
@@ -184,7 +179,7 @@ async def test_batch_logs_do_not_leak_storage_state_secrets(tmp_path: Path):
     save_state(make_state_with_new_sources(1), config.state_path)
 
     adapter = InMemoryAdapter()
-    adapter.generate_audio_error = RuntimeError(
+    adapter.generate_infographic_error = RuntimeError(
         "request failed; cookies=SESSION=abc123; "
         "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature; "
         "session_state=opaque-value"
@@ -211,13 +206,13 @@ async def test_partial_failure_logs_ok_and_fail_separately(tmp_path: Path):
     save_state(make_state_with_new_sources(1), config.state_path)
 
     adapter = InMemoryAdapter()
-    adapter.generate_mind_map_error = RuntimeError("safe_index drift")
+    adapter.generate_slide_deck_error = RuntimeError("method drift")
 
     await run_batch(adapter=adapter, config=config)
 
     log_text = config.log_path.read_text(encoding="utf-8")
-    assert "audio: ok" in log_text
-    assert "video: ok" in log_text
-    assert _re.search(r"mind_map: fail .*(Error|Exception)", log_text), (
-        f"expected 'mind_map: fail <ExcType>' in:\n{log_text}"
+    assert "infographic: ok" in log_text
+    assert "report: ok" in log_text
+    assert _re.search(r"slide_deck: fail .*(Error|Exception)", log_text), (
+        f"expected 'slide_deck: fail <ExcType>' in:\n{log_text}"
     )
