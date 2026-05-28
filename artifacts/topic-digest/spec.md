@@ -10,12 +10,12 @@
 - 한 주제 1개("AI 에이전트 / LLM 일반")에 대응하는 NotebookLM 노트북 1개
 - YouTube 채널 URL 1개의 새 영상을 매일 자동 감지
 - 새 영상 URL을 노트북에 source로 자동 push
-- 주 1회 batch 시점에 Audio Overview, Video Overview, Mind Map을 트리거
+- 주 1회 batch 시점에 Audio Overview, Video Overview, Mind Map, Infographic을 트리거
 - 운영 기록(폴링 결과, 적재 결과, 배치 결과, 실패) 로그 파일
 
 ### 제외
 - **다중 주제 / 다중 노트북** — 본 라운드는 종단 검증 목적. 검증 후 추가
-- **Infographic 자동화** — `notebooklm-py` 0.5.0에서 method drift로 깨짐. NotebookLM UI에서 사용자가 직접 트리거
+- **Infographic orientation 선택** — `orientation=PORTRAIT` 고정. 향후 config 노출 가능하나 본 라운드에서는 결정하지 않음
 - **artifact 결과물의 외부 회수(노션·로컬 등)** — 사용자가 NotebookLM UI에서 직접 확인
 - **YouTube 외 입력 소스(RSS, 블로그)** — 다음 라운드
 - **발행 자동화(블로그/SNS 포스팅)** — idea.md의 Not Doing 그대로 유지
@@ -47,11 +47,11 @@
 
 - **Given** — 노트북에 source가 1개 이상 존재하고, 마지막 batch 이후 적재된 새 source가 1개 이상이다
 - **When** — 주1회 batch가 실행된다
-- **Then** — 노트북의 Audio Overview, Video Overview, Mind Map이 각각 새로 생성되었거나 갱신되었다 (NotebookLM UI에서 새 artifact가 visible)
+- **Then** — 노트북의 Audio Overview, Video Overview, Mind Map, Infographic이 각각 새로 생성되었거나 갱신되었다 (NotebookLM UI에서 새 artifact가 visible)
 
 성공 기준:
 - [ ] batch 실행 후 NotebookLM UI에서 각 artifact 타입별로 "최신 생성 시각"이 batch 실행 시각 이후로 갱신된다
-- [ ] 3개 artifact 각각에 대해 trigger 성공/실패가 로그에 기록된다
+- [ ] 4개 artifact 각각에 대해 trigger 성공/실패가 로그에 기록된다
 - [ ] artifact 생성 *완료*는 batch 종료 시점에 보장되지 않는다 — batch는 trigger까지만 책임진다
 
 ### 4. 새 source 없는 주의 batch (낭비 방지)
@@ -87,12 +87,12 @@
 
 ### 7. 라이브러리 메서드 깨짐 (개별 artifact)
 
-- **Given** — `notebooklm-py`가 특정 artifact 타입(예: Mind Map)에서 라이브러리 내부 오류를 발생시킨다 (스파이크에서 관찰된 패턴)
+- **Given** — `notebooklm-py`가 특정 artifact 타입(예: Mind Map)에서 라이브러리 내부 오류를 발생시킨다
 - **When** — 주1회 batch가 실행된다
 - **Then** — 다른 artifact 타입은 정상 trigger되고, 깨진 타입만 로그에 실패로 기록된다
 
 성공 기준:
-- [ ] Mind Map만 실패하는 상황에서 Audio + Video는 NotebookLM UI에서 새로 생성된 것이 확인된다
+- [ ] Mind Map만 실패하는 상황에서 Audio + Video + Infographic은 NotebookLM UI에서 새로 생성된 것이 확인된다
 - [ ] 로그에 실패한 artifact 타입과 예외 메시지가 분리되어 기록된다
 
 ## 불변 규칙
